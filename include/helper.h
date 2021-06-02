@@ -258,4 +258,6 @@ class Effect {
 
   virtual void Animate();
 
+
+
 };

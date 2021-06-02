@@ -46,9 +46,8 @@ class StaticColor : public Effect {
   virtual void Animate() {
     //this->ledC->BrightDown
   }
+  
 
-  private:
-  //bool fade;
 };
 
 class RandomColor : public Effect {

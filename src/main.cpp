@@ -5,42 +5,40 @@
 
 
 #include "IRpindefenitionsAndMore.h"
-//#include <IRremote.h>
 #define IR_INPUT_PIN 2
 #include <TinyIRReceiver.cpp.h>
 #include <effects.h>
 
-
-
-
 LedPins pins = LedPins(10,11,6);
-LedControl ledControl = LedControl(pins);
-RangeGradient rangeGradient = RangeGradient(&ledControl, true, 100);
-StaticColor staticColor = StaticColor(&ledControl);
-RandomColor randomColor = RandomColor(&ledControl);
+LedControl firstLedControl = LedControl(pins);
+RangeGradient rangeGradient = RangeGradient(&firstLedControl, true, 100);
+StaticColor staticColor = StaticColor(&firstLedControl);
+RandomColor randomColor = RandomColor(&firstLedControl);
 Effect *effect = &rangeGradient;
-Animator animator = Animator(effect);
+Animator firstAnimator = Animator(effect);
 
 
 LedPins pinsWhite = LedPins(5,9,3);
-LedControl ledControlWhile = LedControl(pinsWhite);
-StaticColor staticColorWhite = StaticColor(&ledControlWhile);
-Effect *effectWhite = &staticColorWhite;
-Animator animatorWhite = Animator(effectWhite);
+LedControl secondLedControl = LedControl(pinsWhite);
+StaticColor standaloneWhite = StaticColor(&secondLedControl);
+Effect *effectWhite = &standaloneWhite;
+Animator secondAnimator = Animator(effectWhite);
 
 void setup() {
   Serial.begin(9600);
-  //rangeGradient.SetHueStep(1);
-  //rangeGradient.ApplyFullColorRange();
-  //rangeGradient.ApplyVoilet();
   initPCIInterruptForTinyReceiver();
 }
 
 void loop() {
-  animator.Run();
+  firstAnimator.Run();
+  secondAnimator.Run();
 }
 
-void RangeGradientRC(uint8_t aCommand, bool isRepeat) {
+
+//
+//remote control section
+//
+void RCForGradientRange(uint8_t aCommand, bool isRepeat) {
   switch (aCommand)
   {
     case 0xf:
@@ -99,7 +97,7 @@ void RangeGradientRC(uint8_t aCommand, bool isRepeat) {
   }
 }
 
-void StaticWhite(uint8_t aCommand, bool isRepeat) {
+void RCForStaticWhite(uint8_t aCommand, bool isRepeat) {
   switch (aCommand)
   {
   case 0xf:
@@ -158,7 +156,7 @@ void StaticWhite(uint8_t aCommand, bool isRepeat) {
   }
 }
 
-void StaticColorRC(uint8_t aCommand, bool isRepeat) {
+void RCForStaticColor(uint8_t aCommand, bool isRepeat) {
   switch (aCommand)
   {
   case 0xf:
@@ -223,7 +221,7 @@ void StaticColorRC(uint8_t aCommand, bool isRepeat) {
   }
 }
 
-void RandomColorRC(uint8_t aCommand, bool isRepeat) {
+void RCForRandomColor(uint8_t aCommand, bool isRepeat) {
   switch (aCommand)
   {
   case 0x15:
@@ -237,42 +235,96 @@ void RandomColorRC(uint8_t aCommand, bool isRepeat) {
   }
 }
 
-enum class Effects {RandomColor, RangeGradient, StaticColor, StaticWhite};
-Effects currentMode;
-void handleReceivedTinyIRData(uint16_t aAddress, uint8_t aCommand, bool isRepeat) { 
-  Serial.println(aCommand);
-  if (aCommand == 0x53) {
-    currentMode = Effects::RangeGradient;
-    animator.setEffect(&rangeGradient);
-    }
-  if (aCommand == 0x5b) {
-    currentMode = Effects::StaticColor;
-    animator.setEffect(&staticColor);
-    }
-  if (aCommand == 0x57) {
-    currentMode = Effects::RandomColor;
-    animator.setEffect(&randomColor);
-    }
-  if (aCommand == 0x54) {
-    currentMode = Effects::StaticWhite;
-    animator.setEffect(&staticColor);
-    }
-  
-  switch (currentMode)
+void RCForStandaloneWhite(uint8_t aCommand, bool isRepeat) { 
+switch (aCommand)
   {
-  case Effects::RangeGradient :
-    RangeGradientRC(aCommand, isRepeat);
+  case 0xf:
+    standaloneWhite.Reset();
+  break;
+  case 0x1:
+    standaloneWhite.SetColor(Color(17,100,100));
+  break;
+  case 0x2:
+    standaloneWhite.SetColor(Color(17,97,100));
+  break;
+  case 0x3:
+    standaloneWhite.SetColor(Color(17,91,100));
+  break;
+  case 0x4:
+    standaloneWhite.SetColor(Color(17,79,100));
+  break;
+  case 0x5:
+    standaloneWhite.SetColor(Color(17,64,100));
+  break;
+  case 0x6:
+    standaloneWhite.SetColor(Color(17,51,100));
+  break;
+  case 0x7:
+    standaloneWhite.SetColor(Color(17,0,100));
+  break;
+  case 0xd:
+    staticColor.Reset();
+  break;
+  case 0xb:
+    standaloneWhite.HueUp();
+    Serial.println(standaloneWhite.getHue());
+  break;
+  case 0xe:
+    standaloneWhite.HueDown();
+    Serial.println(standaloneWhite.getHue());
+  break;
+  case 0x16:
+      effect->SaturDown();
+      Serial.println(standaloneWhite.getSatur());
     break;
-  case Effects::StaticColor :
-    StaticColorRC(aCommand, isRepeat);
+    case 0x19:
+      effect->SaturUp();
+      Serial.println(standaloneWhite.getSatur());
     break;
-  case Effects::RandomColor :
-    RandomColorRC(aCommand, isRepeat);
+    case 0x18:
+      effect->BrightDown();
+      Serial.println(standaloneWhite.getBright());
     break;
-  case Effects::StaticWhite :
-    StaticWhite(aCommand, isRepeat);
+    case 0x12:
+      effect->BrightUp();
+      Serial.println(standaloneWhite.getBright());
     break;
   default:
     break;
+  }
+}
+
+enum class RCModes {RandomColor, RangeGradient, StaticColor, StaticWhite, StandaloneWhite};
+RCModes currentMode;
+void handleReceivedTinyIRData(uint16_t aAddress, uint8_t aCommand, bool isRepeat) { 
+  Serial.println(aCommand);
+  if (aCommand == 0x53) {
+    currentMode = RCModes::RangeGradient;
+    firstAnimator.setEffect(&rangeGradient);
+    }
+  if (aCommand == 0x5b) {
+    currentMode = RCModes::StaticColor;
+    firstAnimator.setEffect(&staticColor);
+    }
+  if (aCommand == 0x57) {
+    currentMode = RCModes::RandomColor;
+    firstAnimator.setEffect(&randomColor);
+    }
+  if (aCommand == 0x54) {
+    currentMode = RCModes::StaticWhite;
+    firstAnimator.setEffect(&staticColor);
+    }
+  if (aCommand == 0x1b) {
+    currentMode = RCModes::StandaloneWhite;
+    }
+
+  switch (currentMode)
+  {
+  case RCModes::RangeGradient:   RCForGradientRange(aCommand, isRepeat); break;
+  case RCModes::StaticColor:     RCForStaticWhite(aCommand, isRepeat); break;
+  case RCModes::RandomColor:     RCForRandomColor(aCommand, isRepeat); break;
+  case RCModes::StaticWhite:     RCForStaticColor(aCommand, isRepeat); break;
+  case RCModes::StandaloneWhite: RCForStandaloneWhite(aCommand, isRepeat); break;
+  default: break;
   }
 }
